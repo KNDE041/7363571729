@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Kollus Player V3 for HTML5</title>
+        <meta name="description" content="" />
+        <meta name="author" content="Catenoid.inc" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <link rel="stylesheet" href="css/kollusPlayer.3.0.81.min.css">
+        <script src="../common/js/kollus/vg-controller-server.1.2.5.min.js"></script>
+        <script src="../common/js/lib/jquery-1.12.4.min.js"></script>
+        <script src="../common/js/lib/jquery.xdomainrequest.min.js"></script>
+        <script src="../common/js/lib/blob.min.js"></script>
+        <script src="../common/js/lib/typedarray.min.js"></script>
+        <script src="../common/js/lib/TweenMax.min.js"></script>
+        <script src="../common/js/lib/json2.min.js"></script>
+        <script src="../common/js/lib/moment.min.js"></script>
+        <script src="../common/js/lib/platform.min.js"></script>
+        <script src="../common/js/configuration.min.js"></script>
+        <script src="../common/js/language-pack.min.js"></script>
+        <script src="../common/js/agentcheck.min.js"></script>
+        <script src="../common/js/can-autoplay.min.js"></script>
+        <script src="../common/js/vwm.libs.min.js"></script>
+        <script src="js/kollusPlayer.3.0.81.min.js"></script>
+    </head>
+    <body>
+        <div id="container">
+            <video id="kollusPlayer" class="video-js vjs-default-skin kollus-default"></video>
+            <script>
+                $(document).ready(function() {
+
+                    //var Player = window.Kollus.KollusHTML5Player;
+                    //var Player = Modules.Player;
+                    var Player = Modules.get('com.kollus.kollusV3Player', 'Player');
+
+                    //Agent관련 기본 정보를 넘겨준다.
+                    Player.Options({
+                        agentInfo: {
+                            agentVersionCheckURL: 'http://api.kr.kollus.com/0/account/version_for_kollus',
+                            agentExecuteURL: 'kollus://api.kr.kollus.com/0/account/version_for_kollus', //kollus://run
+                            agentUpdateURL: 'kollus://api.kr.kollus.com/0/account/version_for_kollus',
+                            agentInstallURL: 'http://v.kr.kollus.com/pc_player_install/agent'
+                        },
+                        eventCallback: function(player) {
+                            if (typeof controller !== 'undefined') {
+                                controller.register_event_listeners(player);
+                            }
+                        }
+                    });
+
+                    /* ==========================================================================
+                    * KollusPlayer API
+                    * --------------------------------------------------------------------------
+                    * - window.Kollus.KollusHTML5Player.Options({...}) : 재생 관련 옵션 설정
+                    * - window.Kollus.KollusHTML5Player.StartPlay(type) : 재생시작 (type: stream, download, independant)
+                    * - window.Kollus.KollusHTML5Player.StartDownload() : 다운로드 시작
+                    * ==========================================================================
+                    * KollusPlayer options
+                    * --------------------------------------------------------------------------
+                    * - mediaInfo : SinglePlayer(Non Agent) with MediaInfo Object @mediaInfo
+                    * - singleURL : SinglePlayer(Non Agent) with Direct Mediafile URL @string
+                    * - downloadInfo : AgentPlayer type download content play @index
+                    * - streamingInfo : AgentPlayer type streaming content play @mediaURL
+                    * ========================================================================== */
+
+                    try {
+                        // postmessage 라이브러리 동기화를 위해 먼저 객체를 생성함.
+                        // var controllee = new Kollus.ExclusivePlayerV3VideogatewayControllee(Player);
+                        // controllee.init();
+
+                        // **** VG-Controller 1.1.x ****
+                        // postmessage 라이브러리 동기화를 위해 먼저 객체를 생성함.
+                        var controller = new VgControllerServer(Player, {
+                            player_type: 'v3',
+                            target_window: window.parent
+                        });
+                    } catch (e) {
+                        // 발생 가능한 예외
+                        // 1. PostMessage 사용 불가
+                    }
+
+                    /* ==========================================================================
+                    * External Options
+                    * -------------------------------------------------------------------------- */
+
+                    //EventCallback Function이 있으면 넘겨준다.
+                    if (typeof window.queryString('eventCallbackFn') !== 'undefined') {
+                        Player.Options({
+                            eventCallback: eventCallbackFn
+                        });
+                    }
+
+                    //options에 mediaInfo를 넘겨주면 Agent Player 타입이 아닌 Single Player 타입으로 설정된다.
+                    /*kollusPlayer.options({
+                        mediaInfo: "media info string value..."
+                    });*/
+
+                    //options에 downloadInfo를 넘겨주면 Agent Player 타입의 download play를 실행한다.
+                    if (typeof window.queryString('index') !== 'undefined') {
+                        Player.Options({
+                            downloadInfo: {
+                                index: window.queryString('index')
+                            }
+                        });
+                    }
+
+                    //options에 streamingInfo 넘겨주면 Agent Player 타입의 streaming play를 실행한다.
+                    if (typeof window.queryString('mediaURL') !== 'undefined') {
+                        Player.Options({
+                            streamingInfo: {
+                                mediaURL: window.queryString('mediaURL')
+                            }
+                        });
+                    }
+
+                    //options에 singlePlayInfo 넘겨주면 비 Agent Player 타입의 single play를 실행한다.
+                    if (typeof window.queryString('singleURL') !== 'undefined') {
+                        Player.Options({
+                            singleURL: {
+                                singleURL: window.queryString('singleURL')
+                            }
+                        });
+                    }
+
+
+                    /* ==========================================================================
+                    * Player API
+                    * -------------------------------------------------------------------------- */
+
+                    //KollusPlayer를 초기화 시켜준다.
+                    //download 쿼리스트링 옵션이 있는 경우 다운로드를 먼저 실행.
+                    if (window.objSearch(window.queryString(), 'download')) {
+                        //Download 시작.
+                        Player.StartDownload();
+                    } else {
+                        //mediaOpenType QueryString이 있는 경우 'stream'/'download'/'independant'를 파라미터로 넘겨준다.
+                        if (typeof window.queryString('mediaOpenType') !== 'undefined') {
+                            Player.StartPlay(window.queryString('mediaOpenType'));
+                        } else {
+                            Player.StartPlay('stream');
+                        }
+                    }
+                });
+            </script>
+        </div>
+    </body>
+</html>
